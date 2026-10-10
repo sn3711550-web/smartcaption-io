@@ -1,0 +1,6 @@
+{
+  "name": "AutoCaption - AI Video Captions & Animated Subtitles",
+  "description": "Generate viral animated captions, word-by-word highlights, and dynamic emojis for TikTok, Reels, and Shorts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,125 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered user profile with Google authentication and credit tracking to prevent free tier abuse",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique Google user ID (UID)",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User Google email address",
+          "maxLength": 254
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 120
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Google avatar URL",
+          "maxLength": 1000
+        },
+        "plan": {
+          "type": "string",
+          "description": "User subscription plan tier",
+          "enum": ["free", "pro", "business"]
+        },
+        "freeCreditsUsed": {
+          "type": "number",
+          "description": "Number of free export credits used by this account"
+        },
+        "freeCreditsMax": {
+          "type": "number",
+          "description": "Maximum free credits allocated (default 3)"
+        },
+        "totalExportsCount": {
+          "type": "number",
+          "description": "Total lifetime exports across all plans"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account registration timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last activity timestamp"
+        }
+      },
+      "required": ["id", "email", "plan", "freeCreditsUsed", "freeCreditsMax", "createdAt", "updatedAt"]
+    },
+    "UserProject": {
+      "title": "UserProject",
+      "description": "Saved caption project metadata for user history",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Project ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner Google UID",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Video project title",
+          "maxLength": 200
+        },
+        "language": {
+          "type": "string",
+          "description": "Language used for captions",
+          "maxLength": 50
+        },
+        "styleId": {
+          "type": "string",
+          "description": "Preset caption style identifier",
+          "maxLength": 64
+        },
+        "aspectRatio": {
+          "type": "string",
+          "description": "Video aspect ratio",
+          "enum": ["9:16", "1:1", "16:9", "4:5"]
+        },
+        "duration": {
+          "type": "number",
+          "description": "Video duration in seconds"
+        },
+        "segmentsCount": {
+          "type": "number",
+          "description": "Total subtitle segments"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["id", "userId", "title", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile with plan and credit quota storage"
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": "UserProject",
+      "description": "User saved caption projects"
+    }
+  }
+}
