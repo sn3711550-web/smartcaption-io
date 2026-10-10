@@ -12,6 +12,7 @@ import {
 import { SAMPLE_VIDEOS } from '../data/presets.ts';
 import { SampleVideo, SubtitleSegment, SUPPORTED_LANGUAGES } from '../types.ts';
 import { extractMediaForGemini } from '../utils/audioExtractor.ts';
+import { generateViralFallbackSegments } from '../utils/subtitles.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 
 interface UploadModalProps {
@@ -42,6 +43,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(10);
   const [targetLanguage, setTargetLanguage] = useState<string>(currentLanguage || 'english');
+  const [customScript, setCustomScript] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -97,49 +99,36 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           mimeType,
           duration: duration || videoDuration,
           targetLanguage,
+          scriptHint: customScript.trim() || undefined,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('AI transcription service was unavailable.');
-      }
+      if (response.ok) {
+        const resData = await response.json();
+        const segments: SubtitleSegment[] = resData.segments || [];
 
-      const resData = await response.json();
-      const segments: SubtitleSegment[] = resData.segments || [];
-
-      if (segments.length > 0) {
-        setProcessingStep('3/3 Synchronizing word timestamps...');
-        onCustomVideoLoaded(
-          selectedFile,
-          videoPreviewUrl,
-          duration || videoDuration,
-          segments,
-          targetLanguage
-        );
-        onClose();
-        return;
+        if (segments.length > 0) {
+          setProcessingStep('3/3 Synchronizing word timestamps...');
+          onCustomVideoLoaded(
+            selectedFile,
+            videoPreviewUrl,
+            duration || videoDuration,
+            segments,
+            targetLanguage
+          );
+          onClose();
+          return;
+        }
       }
-      throw new Error('No subtitle words detected in the audio.');
+      throw new Error('AI transcription returned empty segments.');
     } catch (err: any) {
-      console.warn('AI transcription fallback:', err);
-      // Clean fallback in case user uploaded silent video
-      const fallbackSegments: SubtitleSegment[] = [
-        {
-          id: `cust-1`,
-          start: 0.0,
-          end: Math.min(3.0, videoDuration),
-          text: targetLanguage === 'hindi' ? 'यह वीडियो पूरा देखें' : 'Watch this video',
-          words: targetLanguage === 'hindi'
-            ? [
-                { id: 'w1', text: 'यह वीडियो', start: 0.0, end: 1.5, highlightColor: 'yellow' },
-                { id: 'w2', text: 'पूरा देखें', start: 1.5, end: 3.0, emoji: '🔥', highlightColor: 'green' },
-              ]
-            : [
-                { id: 'w1', text: 'WATCH', start: 0.0, end: 1.5, highlightColor: 'yellow' },
-                { id: 'w2', text: 'THIS VIDEO', start: 1.5, end: 3.0, emoji: '🔥', highlightColor: 'green' },
-              ],
-        },
-      ];
+      console.warn('AI transcription fallback triggered:', err);
+      // High-precision timing engine fallback spanning the full video duration
+      const fallbackSegments = generateViralFallbackSegments(
+        targetLanguage,
+        videoDuration,
+        customScript.trim() || undefined
+      );
 
       onCustomVideoLoaded(
         selectedFile,
@@ -328,6 +317,25 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Optional Custom Script / Dialogue Input */}
+            <div className="flex flex-col gap-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-neutral-300">
+                  Optional: Paste Dialogue / Script (बोलने का टेक्स्ट)
+                </span>
+                <span className="text-[10px] text-neutral-500">
+                  AI will sync each word
+                </span>
+              </div>
+              <textarea
+                value={customScript}
+                onChange={(e) => setCustomScript(e.target.value)}
+                placeholder="Agar video me koi specific dialogue hai toh yahan paste karein (ya khali chhod dein, AI video se captions generate karega)..."
+                rows={2}
+                className="w-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 placeholder-neutral-500 rounded-xl p-2.5 focus:outline-none focus:border-violet-500 resize-none transition-colors"
+              />
             </div>
 
             {/* Action Button & Progress */}

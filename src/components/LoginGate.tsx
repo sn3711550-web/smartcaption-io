@@ -55,7 +55,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onSuccess, onBackToHome })
       } else if (code === 'auth/unauthorized-domain' || err?.message === 'UNAUTHORIZED_DOMAIN') {
         setIsPopupBlocked(true);
         setErrorMessage(
-          'Preview domain par popup block hua hai. Kripya neeche apna Gmail daal kar 1-click me login karein.'
+          'Firebase Domain Policy: Vercel domain (smartcaption-io.vercel.app) ko Firebase Console me Authorized Domain me add karein, ya neeche apna Gmail daal kar turant 1-click me login karein.'
         );
       } else {
         setIsPopupBlocked(true);

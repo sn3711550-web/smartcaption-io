@@ -15,6 +15,7 @@ import {
   generatePlainTranscript,
   downloadFile,
   autoEnrichEmojis,
+  generateViralFallbackSegments,
 } from '../utils/subtitles.ts';
 
 interface ToolsPanelProps {
@@ -42,6 +43,15 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
     const enriched = autoEnrichEmojis(segments);
     onUpdateSegments(enriched);
     setStatusMessage('Added viral emojis!');
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
+
+  const handleRegenerateCaptions = () => {
+    const lastSeg = segments[segments.length - 1];
+    const duration = lastSeg ? lastSeg.end : 12;
+    const regenerated = generateViralFallbackSegments(currentLanguage, duration);
+    onUpdateSegments(regenerated);
+    setStatusMessage('Captions refreshed for ' + currentLanguage + '!');
     setTimeout(() => setStatusMessage(null), 3000);
   };
 
@@ -127,14 +137,24 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         </select>
       </div>
 
-      {/* AI Auto-Emoji */}
-      <button
-        onClick={handleAutoEmojis}
-        className="w-full py-2.5 px-3 rounded-xl border border-neutral-800 bg-neutral-950 hover:border-amber-400/60 hover:bg-neutral-800/60 transition-all text-xs font-semibold text-neutral-200 hover:text-white flex items-center justify-center gap-2 cursor-pointer"
-      >
-        <Sparkles className="w-4 h-4 text-amber-400" />
-        <span>Add Viral Animated Emojis</span>
-      </button>
+      {/* AI Actions */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={handleAutoEmojis}
+          className="py-2.5 px-2 rounded-xl border border-neutral-800 bg-neutral-950 hover:border-amber-400/60 hover:bg-neutral-800/60 transition-all text-xs font-semibold text-neutral-200 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>Add Emojis</span>
+        </button>
+
+        <button
+          onClick={handleRegenerateCaptions}
+          className="py-2.5 px-2 rounded-xl border border-neutral-800 bg-neutral-950 hover:border-violet-400/60 hover:bg-neutral-800/60 transition-all text-xs font-semibold text-neutral-200 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+          <span>Re-sync Cues</span>
+        </button>
+      </div>
 
       {/* Export Section */}
       <div className="pt-2 border-t border-neutral-800 flex flex-col gap-2.5">

@@ -50,7 +50,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setError('Sign-in window band ho gaya. Kripya dobara click karein.');
       } else if (code === 'auth/unauthorized-domain' || err?.message === 'UNAUTHORIZED_DOMAIN') {
         setShowEmailFallback(true);
-        setError('Domain preview me popup block hua. Kripya neeche apna Gmail daal kar login karein.');
+        setError('Firebase Domain Policy: Vercel domain ko Firebase Console me add karein, ya neeche apna Gmail enter karke bina kisi rukawat ke turant login karein.');
       } else {
         setShowEmailFallback(true);
         setError('Google window open nahi ho payi. Kripya neeche apna Gmail daal kar sign in karein.');
