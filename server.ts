@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -16,14 +15,36 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Lightweight, lowest-cost Gemini model (Flash-Lite uses 4x-5x fewer resources)
-const EFFICIENT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
+// Health check endpoint
+app.get('/api/health', (_req, res) => {
+  const hasKey = !!(
+    process.env.GEMINI_API_KEY ||
+    process.env.gemini ||
+    process.env.GEMINI ||
+    process.env.VITE_GEMINI_API_KEY ||
+    process.env.GEMINI_KEY ||
+    process.env.API_KEY
+  );
+  res.json({ status: 'ok', hasGeminiKey: hasKey, timestamp: Date.now() });
+});
 
-// Initialize Google GenAI
-const apiKey = process.env.GEMINI_API_KEY;
-let ai: GoogleGenAI | null = null;
-if (apiKey) {
-  ai = new GoogleGenAI({
+// Model names from @google/genai guidelines
+const PRIMARY_GEMINI_MODEL = 'gemini-flash-latest';
+const FALLBACK_GEMINI_MODEL = 'gemini-3.1-flash-lite';
+
+// Initialize Google GenAI client flexibly supporting all common env key variations
+function getGeminiClient(): GoogleGenAI | null {
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.gemini ||
+    process.env.GEMINI ||
+    process.env.VITE_GEMINI_API_KEY ||
+    process.env.GEMINI_KEY ||
+    process.env.API_KEY;
+
+  if (!apiKey) return null;
+
+  return new GoogleGenAI({
     apiKey,
     httpOptions: {
       headers: {
@@ -249,8 +270,10 @@ app.post('/api/transcribe', async (req, res) => {
     targetLanguage = 'english',
   } = req.body;
 
+  const aiClient = getGeminiClient();
+
   // Method 1: Try Gemini API if configured
-  if (ai) {
+  if (aiClient) {
     try {
       const mediaData = audioData || videoData;
       let contents: any[] = [];
@@ -290,10 +313,10 @@ app.post('/api/transcribe', async (req, res) => {
           {
             text: `You are the world's best AI video caption generator (like Submagic & AutoCaption.io).
 TASK:
-1. Listen carefully to the voice/audio in this media. Detect the spoken language automatically.
+1. Listen carefully to the voice/audio in this media. Transcribe what is actually spoken in the audio.
 2. Generate captions in the user's TARGET LANGUAGE: ${targetLanguage.toUpperCase()}.
 ${targetPrompt}
-3. Break down the speech into short, rapid-fire viral segments (1 to 3 words per segment max, suitable for TikTok / Reels / YouTube Shorts).
+3. Break down the spoken words into short, rapid-fire viral segments (1 to 3 words per segment max, suitable for TikTok / Reels / YouTube Shorts).
 4. CRITICAL TIMING ACCURACY:
    - Synchronize each word and segment to the exact moment it is spoken in the audio.
    - For every segment and every word, provide precise start and end timestamps in seconds (e.g. start: 1.25, end: 1.60).
@@ -317,35 +340,48 @@ Add engaging viral emojis (🔥, 🚀, 💡, 💰, ⚡, 🤯) and highlight colo
         ];
       }
 
-      const response = await ai.models.generateContent({
-        model: EFFICIENT_GEMINI_MODEL,
-        contents,
-        config: {
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.MINIMAL,
-          },
-          systemInstruction:
-            'You are an expert video caption and subtitle timing engine. Always output perfectly formatted JSON with segments and word-level timestamps. Never output markdown fences.',
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              detectedLanguage: {
-                type: Type.STRING,
-                description: 'The language detected in the video audio (e.g. Hindi, English, Spanish)',
-              },
-              segments: {
-                type: Type.ARRAY,
-                items: segmentSchema,
+      // Try flash models in order of best performance
+      const modelsToTry = [PRIMARY_GEMINI_MODEL, FALLBACK_GEMINI_MODEL, 'gemini-3.8-flash'];
+      let parsed: any = null;
+
+      for (const modelName of modelsToTry) {
+        try {
+          const response = await aiClient.models.generateContent({
+            model: modelName,
+            contents,
+            config: {
+              systemInstruction:
+                'You are an expert video caption and subtitle timing engine. Always output perfectly formatted JSON with segments and word-level timestamps. Never output markdown fences.',
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  detectedLanguage: {
+                    type: Type.STRING,
+                    description: 'The language detected in the video audio (e.g. Hindi, English, Spanish)',
+                  },
+                  segments: {
+                    type: Type.ARRAY,
+                    items: segmentSchema,
+                  },
+                },
+                required: ['segments'],
               },
             },
-            required: ['segments'],
-          },
-        },
-      });
+          });
 
-      const parsed = JSON.parse(response.text || '{}');
-      if (parsed.segments && parsed.segments.length > 0) {
+          const jsonText = response.text || '{}';
+          const candidateParsed = JSON.parse(jsonText);
+          if (candidateParsed.segments && candidateParsed.segments.length > 0) {
+            parsed = candidateParsed;
+            break;
+          }
+        } catch (mErr: any) {
+          console.warn(`Gemini model ${modelName} transcription attempt failed:`, mErr?.message || mErr);
+        }
+      }
+
+      if (parsed && parsed.segments && parsed.segments.length > 0) {
         const smoothedSegments = sanitizeAndSmoothTimings(parsed.segments, duration);
         return res.json({
           detectedLanguage: parsed.detectedLanguage || targetLanguage,
@@ -372,17 +408,15 @@ Add engaging viral emojis (🔥, 🚀, 💡, 💰, ⚡, 🤯) and highlight colo
 // API: AI Auto-Emojis & Viral Enhancements
 app.post('/api/auto-emojis', async (req, res) => {
   const { segments } = req.body;
+  const aiClient = getGeminiClient();
 
-  if (ai) {
+  if (aiClient) {
     try {
-      const response = await ai.models.generateContent({
-        model: EFFICIENT_GEMINI_MODEL,
+      const response = await aiClient.models.generateContent({
+        model: PRIMARY_GEMINI_MODEL,
         contents: `Analyze these subtitle segments and enhance them with high-retention viral emojis (like TikTok/Reels captions) on key buzzwords and assign highlight colors (yellow, green, cyan, coral).
 Input segments: ${JSON.stringify(segments)}`,
         config: {
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.MINIMAL,
-          },
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -412,18 +446,16 @@ Input segments: ${JSON.stringify(segments)}`,
 // API: Translate Captions
 app.post('/api/translate-captions', async (req, res) => {
   const { segments, targetLanguage } = req.body;
+  const aiClient = getGeminiClient();
 
-  if (ai) {
+  if (aiClient) {
     try {
-      const response = await ai.models.generateContent({
-        model: EFFICIENT_GEMINI_MODEL,
+      const response = await aiClient.models.generateContent({
+        model: PRIMARY_GEMINI_MODEL,
         contents: `Translate the text in these subtitle segments into ${targetLanguage || 'Hindi'}.
 Preserve the exact same segment IDs, timings, and word count proportions so they align with the video.
 Segments: ${JSON.stringify(segments)}`,
         config: {
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.MINIMAL,
-          },
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -461,6 +493,7 @@ async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
   if (!isProd) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

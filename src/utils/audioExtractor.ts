@@ -54,8 +54,8 @@ export async function extractMediaForGemini(
 
   // Method 2: Direct media slice fallback (Gemini natively accepts video/mp4, video/webm, audio/mp3)
   if (onProgress) onProgress('Preparing media file for AI...');
-  // Slice to max 15MB to ensure fast upload
-  const maxBytes = 15 * 1024 * 1024;
+  // Slice to max 3MB to ensure fast upload and fit within serverless request limits
+  const maxBytes = 3 * 1024 * 1024;
   const fileSlice = mediaFile.size > maxBytes ? mediaFile.slice(0, maxBytes) : mediaFile;
   const base64Data = await blobToBase64(fileSlice);
 

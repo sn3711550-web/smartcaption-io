@@ -315,7 +315,7 @@ export function generateViralFallbackSegments(
         start: wStart,
         end: wEnd,
         emoji: w.emoji,
-        highlightColor: w.highlightColor,
+        highlightColor: (w.highlightColor as SubtitleWord['highlightColor']) || 'default',
       };
     });
 
