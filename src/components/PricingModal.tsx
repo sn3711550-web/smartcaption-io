@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { upgradeUserPlan } from '../lib/firebase.ts';
+import { SMART_CAPTION_LOGO } from '../data/presets.ts';
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -111,7 +112,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden ring-1 ring-violet-500/40 shadow-md">
               <img
-                src="/src/assets/images/smartcaption_logo_1791567332036.jpg"
+                src={SMART_CAPTION_LOGO}
                 alt="Smart Caption Logo"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"

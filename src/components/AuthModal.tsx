@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles, ShieldCheck, Zap, AlertCircle, Loader2, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { SMART_CAPTION_LOGO } from '../data/presets.ts';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -79,7 +80,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       setIsEmailLoading(false);
       console.error('Email sign-in failed:', err);
-      setError('Account connect karne me error aayi. Kripya dobara try karein.');
+      setError(
+        err?.message && err.message !== 'Account connect karne me error aayi.'
+          ? err.message
+          : 'Account connect karne me error aayi. Kripya dobara try karein.'
+      );
     }
   };
 
@@ -146,7 +151,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="flex flex-col items-center text-center gap-3 pt-2">
           <div className="relative w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-violet-500/50 shadow-xl shadow-violet-600/30">
             <img
-              src="/src/assets/images/smartcaption_logo_1791567332036.jpg"
+              src={SMART_CAPTION_LOGO}
               alt="Smart Caption Logo"
               className="w-full h-full object-cover"
             />

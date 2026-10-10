@@ -13,6 +13,7 @@ import {
   Film,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { SMART_CAPTION_LOGO } from '../data/presets.ts';
 
 interface LoginGateProps {
   onSuccess?: () => void;
@@ -88,7 +89,11 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onSuccess, onBackToHome })
     } catch (err: any) {
       setIsLoadingEmail(false);
       console.error('Email login error:', err);
-      setErrorMessage('Account connect karne me dikkat aayi. Kripya dobara try karein.');
+      setErrorMessage(
+        err?.message && err.message !== 'Account connect karne me dikkat aayi.'
+          ? err.message
+          : 'Account connect karne me dikkat aayi. Kripya dobara try karein.'
+      );
     }
   };
 
@@ -103,7 +108,7 @@ export const LoginGate: React.FC<LoginGateProps> = ({ onSuccess, onBackToHome })
         <div className="flex flex-col items-center text-center gap-3">
           <div className="relative w-16 h-16 rounded-2xl overflow-hidden ring-2 ring-violet-500/50 shadow-xl shadow-violet-600/30 group">
             <img
-              src="/src/assets/images/smartcaption_logo_1791567332036.jpg"
+              src={SMART_CAPTION_LOGO}
               alt="Smart Caption Logo"
               className="w-full h-full object-cover"
             />

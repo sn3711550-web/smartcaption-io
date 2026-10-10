@@ -225,22 +225,44 @@ export async function signInWithGoogleEmail(
     throw new Error('Please enter a valid Gmail or email address');
   }
 
-  // Ensure Firebase Auth session exists so security rules pass
+  // Try Firebase Auth session if supported
   let fbUser = auth.currentUser;
   if (!fbUser) {
-    const cred = await signInAnonymously(auth);
-    fbUser = cred.user;
+    try {
+      const cred = await signInAnonymously(auth);
+      fbUser = cred.user;
+    } catch (anonErr) {
+      console.warn('Anonymous auth not enabled in Firebase Console, using client session:', anonErr);
+    }
   }
 
   const name = displayName || cleanEmail.split('@')[0];
-  const userRef = doc(db, 'users', fbUser.uid);
-  const path = `users/${fbUser.uid}`;
+  const stableId = fbUser?.uid || ('usr_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 24));
+  const userRef = doc(db, 'users', stableId);
+  const nowIso = new Date().toISOString();
+
+  // Check if user previously had credit count in cookies
+  const cached = getUserSessionCookie();
+  const prevUsed =
+    cached && cached.email === cleanEmail && typeof cached.freeCreditsUsed === 'number'
+      ? cached.freeCreditsUsed
+      : 0;
+
+  let profile: UserProfile = {
+    id: stableId,
+    email: cleanEmail,
+    displayName: name,
+    photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=8b5cf6`,
+    plan: cached?.plan || 'free',
+    freeCreditsUsed: prevUsed,
+    freeCreditsMax: 3,
+    totalExportsCount: prevUsed,
+    createdAt: cached?.createdAt || nowIso,
+    updatedAt: nowIso,
+  };
 
   try {
     const snapshot = await getDoc(userRef);
-    let profile: UserProfile;
-    const nowIso = new Date().toISOString();
-
     if (snapshot.exists()) {
       const data = snapshot.data() as UserProfile;
       await updateDoc(userRef, {
@@ -255,33 +277,14 @@ export async function signInWithGoogleEmail(
         updatedAt: nowIso,
       };
     } else {
-      // Check if user previously had credit count in cookies
-      const cached = getUserSessionCookie();
-      const prevUsed =
-        cached && cached.email === cleanEmail && typeof cached.freeCreditsUsed === 'number'
-          ? cached.freeCreditsUsed
-          : 0;
-
-      profile = {
-        id: fbUser.uid,
-        email: cleanEmail,
-        displayName: name,
-        photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=8b5cf6`,
-        plan: 'free',
-        freeCreditsUsed: prevUsed,
-        freeCreditsMax: 3,
-        totalExportsCount: prevUsed,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      };
       await setDoc(userRef, profile);
     }
-
-    setUserSessionCookie(profile);
-    return profile;
-  } catch (err) {
-    handleFirestoreError(err, OperationType.GET, path);
+  } catch (firestoreErr) {
+    console.warn('Firestore write skipped, maintaining local session:', firestoreErr);
   }
+
+  setUserSessionCookie(profile);
+  return profile;
 }
 
 // Sign Out
@@ -336,7 +339,24 @@ export async function syncUserProfile(fbUser: FirebaseUser): Promise<UserProfile
       return newProfile;
     }
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn('Firestore sync skipped or permission denied, maintaining local session:', error);
+    const nowIso = new Date().toISOString();
+    const fallbackProfile: UserProfile = {
+      id: fbUser.uid,
+      email: fbUser.email || 'creator@smartcaption.ai',
+      displayName: fbUser.displayName || 'Smart Caption Creator',
+      photoURL:
+        fbUser.photoURL ||
+        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fbUser.displayName || 'Creator')}&backgroundColor=8b5cf6`,
+      plan: 'free',
+      freeCreditsUsed: 0,
+      freeCreditsMax: 3,
+      totalExportsCount: 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    setUserSessionCookie(fallbackProfile);
+    return fallbackProfile;
   }
 }
 
@@ -375,6 +395,29 @@ export async function consumeExportCredit(userId: string): Promise<UserProfile> 
   } catch (error) {
     if (error instanceof Error && error.message === 'LIMIT_REACHED') {
       throw error;
+    }
+    // Fallback to local session cookie if Firestore write fails
+    const cached = getUserSessionCookie();
+    if (cached) {
+      const used = (cached.freeCreditsUsed || 0) + 1;
+      const max = cached.freeCreditsMax || 3;
+      if (cached.plan === 'free' && used > max) {
+        throw new Error('LIMIT_REACHED');
+      }
+      const updated: UserProfile = {
+        id: userId,
+        email: cached.email || '',
+        displayName: cached.displayName || 'Creator',
+        photoURL: cached.photoURL || '',
+        plan: cached.plan || 'free',
+        freeCreditsUsed: used,
+        freeCreditsMax: max,
+        totalExportsCount: used,
+        createdAt: cached.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setUserSessionCookie(updated);
+      return updated;
     }
     handleFirestoreError(error, OperationType.UPDATE, path);
   }

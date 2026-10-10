@@ -12,8 +12,15 @@ import {
   setUserSessionCookie,
 } from '../lib/firebase.ts';
 
+export interface AppUser {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+}
+
 interface AuthContextType {
-  user: FirebaseUser | null;
+  user: AppUser | null;
   profile: UserProfile | null;
   loading: boolean;
   signIn: () => Promise<void>;
@@ -28,7 +35,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setUser(fbUser);
+      setFirebaseUser(fbUser);
       if (fbUser) {
         try {
           const prof = await syncUserProfile(fbUser);
@@ -52,8 +59,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Failed to sync user profile:', err);
         }
       } else {
-        setProfile(null);
-        setUserSessionCookie(null);
+        // Retain session profile if present (e.g. email sign in)
+        const session = getUserSessionCookie();
+        if (session && session.id) {
+          setProfile(session as UserProfile);
+        } else {
+          setProfile(null);
+        }
       }
       setLoading(false);
     });
@@ -89,23 +101,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleSignOut = async () => {
     await signOutUser();
-    setUser(null);
+    setFirebaseUser(null);
     setProfile(null);
+    setUserSessionCookie(null);
   };
 
+  const activeUser: AppUser | null = firebaseUser
+    ? {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+      }
+    : profile
+    ? {
+        uid: profile.id,
+        email: profile.email,
+        displayName: profile.displayName,
+        photoURL: profile.photoURL,
+      }
+    : null;
+
   const handleConsumeCredit = async (): Promise<UserProfile> => {
-    if (!user) {
+    const targetUid = activeUser?.uid || profile?.id;
+    if (!targetUid) {
       throw new Error('AUTH_REQUIRED');
     }
-    const updated = await consumeExportCredit(user.uid);
+    const updated = await consumeExportCredit(targetUid);
     setProfile(updated);
     return updated;
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      const prof = await syncUserProfile(user);
+    if (firebaseUser) {
+      const prof = await syncUserProfile(firebaseUser);
       setProfile(prof);
+    } else {
+      const cached = getUserSessionCookie();
+      if (cached) setProfile(cached as UserProfile);
     }
   };
 
@@ -122,7 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user: activeUser,
         profile,
         loading,
         signIn: handleSignIn,

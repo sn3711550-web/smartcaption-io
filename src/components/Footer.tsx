@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, Mail, Sparkles, Heart, Globe, Lock } from 'lucide-react';
 import { LegalTab } from './LegalModal.tsx';
+import { SMART_CAPTION_LOGO } from '../data/presets.ts';
 
 interface FooterProps {
   onOpenLegal: (tab: LegalTab) => void;
@@ -22,7 +23,7 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-violet-500/40 shadow-md">
               <img
-                src="/src/assets/images/smartcaption_logo_1791567332036.jpg"
+                src={SMART_CAPTION_LOGO}
                 alt="Smart Caption DP Logo"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"

@@ -1,11 +1,18 @@
 import { CaptionStyle, SampleVideo } from '../types.ts';
+import creatorPodcastPoster from '../assets/images/creator_podcast_portrait_1791558489856.jpg';
+import creatorTechPoster from '../assets/images/creator_tech_portrait_1791558502748.jpg';
+import creatorFitnessPoster from '../assets/images/creator_fitness_portrait_1791558523730.jpg';
+import creatorMrBeastPoster from '../assets/images/creator_mrbeast_portrait_1791565019347.jpg';
+import creatorRajShamaniPoster from '../assets/images/creator_indian_podcaster_1791565054705.jpg';
+import smartCaptionLogo from '../assets/images/smartcaption_logo_1791567332036.jpg';
 
 // Sample video portrait posters generated for the app
-export const CREATOR_PODCAST_POSTER = '/src/assets/images/creator_podcast_portrait_1791558489856.jpg';
-export const CREATOR_TECH_POSTER = '/src/assets/images/creator_tech_portrait_1791558502748.jpg';
-export const CREATOR_FITNESS_POSTER = '/src/assets/images/creator_fitness_portrait_1791558523730.jpg';
-export const CREATOR_MRBEAST_POSTER = '/src/assets/images/creator_mrbeast_portrait_1791565019347.jpg';
-export const CREATOR_RAJSHAMANI_POSTER = '/src/assets/images/creator_indian_podcaster_1791565054705.jpg';
+export const CREATOR_PODCAST_POSTER = creatorPodcastPoster;
+export const CREATOR_TECH_POSTER = creatorTechPoster;
+export const CREATOR_FITNESS_POSTER = creatorFitnessPoster;
+export const CREATOR_MRBEAST_POSTER = creatorMrBeastPoster;
+export const CREATOR_RAJSHAMANI_POSTER = creatorRajShamaniPoster;
+export const SMART_CAPTION_LOGO = smartCaptionLogo;
 
 export const CAPTION_STYLES: CaptionStyle[] = [
   {

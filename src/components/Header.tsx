@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PlaySquare, Zap, Video, LogOut, ChevronDown, CheckCircle, Sparkles, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { SMART_CAPTION_LOGO } from '../data/presets.ts';
 
 interface HeaderProps {
   currentView: 'studio' | 'landing';
@@ -44,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Smart Caption Glowing DP/Logo Icon */}
           <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden ring-1 ring-violet-500/40 shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-all">
             <img
-              src="/src/assets/images/smartcaption_logo_1791567332036.jpg"
+              src={SMART_CAPTION_LOGO}
               alt="Smart Caption Logo"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"

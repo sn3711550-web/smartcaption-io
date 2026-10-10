@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, FileText, RefreshCw, Mail, Info, CheckCircle2 } from 'lucide-react';
+import { SMART_CAPTION_LOGO } from '../data/presets.ts';
 
 export type LegalTab = 'privacy' | 'terms' | 'refund' | 'contact' | 'about';
 
@@ -41,7 +42,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-violet-500/40 shadow-md">
               <img
-                src="/src/assets/images/smartcaption_logo_1791567332036.jpg"
+                src={SMART_CAPTION_LOGO}
                 alt="Smart Caption Logo"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
